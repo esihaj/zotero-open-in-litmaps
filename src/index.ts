@@ -3,23 +3,29 @@ import Addon from "./addon";
 import { config } from "../package.json";
 
 const basicTool = new BasicTool();
+const Zotero = basicTool.getGlobal("Zotero");
+const _globalThis = globalThis as any;
 
-// @ts-ignore - Plugin instance is not typed
-if (!basicTool.getGlobal("Zotero")[config.addonInstance]) {
+// If our plugin isn't attached to Zotero yet, create and attach it
+if (!(Zotero as any)[config.addonInstance]) {
+  // Create the add-on instance, store it in globalThis
   _globalThis.addon = new Addon();
+
+  // Optionally define "ztoolkit" as a getter on globalThis
   defineGlobal("ztoolkit", () => {
     return _globalThis.addon.data.ztoolkit;
   });
-  // @ts-ignore - Plugin instance is not typed
-  Zotero[config.addonInstance] = addon;
+
+  // Attach the plugin instance to Zotero with a safe cast
+  (Zotero as any)[config.addonInstance] = _globalThis.addon;
 }
 
-function defineGlobal(name: Parameters<BasicTool["getGlobal"]>[0]): void;
-function defineGlobal(name: string, getter: () => any): void;
-function defineGlobal(name: string, getter?: () => any) {
+/**
+ * Helper function to define a property on globalThis with a given getter.
+ */
+function defineGlobal(name: string, getter: () => any) {
   Object.defineProperty(_globalThis, name, {
-    get() {
-      return getter ? getter() : basicTool.getGlobal(name);
-    },
+    get: getter,
+    configurable: true,
   });
 }
